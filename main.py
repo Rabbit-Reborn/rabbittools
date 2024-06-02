@@ -6,9 +6,6 @@ import sys
 import getlatest
 import getvnc
 from datetime import datetime, timedelta
-
-import talk
-
 load_dotenv()
 
 version = "2.0"

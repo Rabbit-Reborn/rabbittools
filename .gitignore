@@ -2,3 +2,5 @@
 .env
 cookie.txt
 __pycache__
+ja3proxy
+rabbitserver-go
