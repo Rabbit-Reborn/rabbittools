@@ -15,7 +15,7 @@ import random
 def validate_imei(imei):
     imei = ''.join(filter(str.isdigit, imei))
     if len(imei) != 15 or not imei.isdigit():
-        return "Invalid IMEI"
+        return False
 
     imei_without_checksum = imei[:-1]
     checksum = imei[-1]
