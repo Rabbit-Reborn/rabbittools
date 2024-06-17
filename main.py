@@ -1,5 +1,6 @@
 import discord
 from discord import app_commands
+from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import logging
@@ -10,15 +11,14 @@ import time
 from datetime import datetime, timedelta
 import patch
 import imei
+
 start_time = datetime.utcnow()
 total_errors = 0
 processed_commands = 0
 load_dotenv()
-global total_errors, processed_commands
 
-version = "2.3.0_mini-2"
-debug = False
-
+version = "2.3.0_mini-2_dev1"
+debug = True
 # Configure logging
 out_stream_handler = logging.StreamHandler(sys.stdout)
 out_stream_handler.setLevel(logging.DEBUG)
@@ -36,10 +36,63 @@ logging.info("logging configured")
 logging.info("configure bot")
 
 
+# Unhandled Exception Handler
+def handle_exception(exc_type, exc_value, exc_traceback):
+    global total_errors
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    total_errors += 1
+    user = client.fetch_user(os.getenv("DEVELOPER_ID"))
+
+    embed = discord.Embed(
+        title="Uncatched Exception",
+        description=f"Non-discord.py exception: {exc_type} {exc_value}",
+        color=0xFF0000,
+    )
+
+    embed.add_field(name="Traceback", value=f"```{exc_traceback}```")
+    embed.add_field(name="Error", value=str(exc_value))
+
+    user.send(embed=embed)
+    logging.info("send dev errorlog")
+
+
+sys.excepthook = handle_exception
+
+
 class botclient(discord.Client):
     def __init__(self):
-        super().__init__(intents=discord.Intents.default())
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(intents=intents)
         self.synced = False
+
+    async def on_command_error(self, ctx: commands.Context, error):
+        total_errors += 1
+        logging.error(f"Error processing command: {type(error)} {error}, {error.__traceback__}")
+
+        # send to dev
+        user = await client.fetch_user(os.getenv("DEVELOPER_ID"))
+
+        embed = discord.Embed(
+            title="Uncatched Exception",
+            description=f"Error processing command: {type(error)} {error}",
+            color=0xFF0000,
+        )
+        embed.add_field(name="Command", value=ctx.command.name)
+        embed.add_field(name="Author", value=ctx.author.display_name)
+        embed.add_field(name="Channel", value=ctx.channel.name)
+        embed.add_field(name="Guild", value=ctx.guild.name)
+        embed.add_field(name="Error", value=str(error))
+        embed.add_field(name="Traceback", value=f"```{error.__traceback__}```")
+        await user.send(embed=embed)
+        logging.info("send dev errorlog")
+
+
+
 
     async def on_ready(self):
         await self.wait_until_ready()
@@ -242,7 +295,9 @@ async def help_command(interaction: discord.Interaction):
     )
 
     embed.add_field(name="/ota", value="Gets the latest OTA from Rabbit", inline=False)
-    embed.add_field(name="/vnc [type]", value="Generates a VNC instance. Valid types are: midjourney, spotify, uber, doordash", inline=False)
+    embed.add_field(name="/vnc [type]",
+                    value="Generates a VNC instance. Valid types are: midjourney, spotify, uber, doordash",
+                    inline=False)
     embed.add_field(name="/r1_imei [imei]", value="Validates or generates an IMEI", inline=False)
     #embed.add_field(name="/patch", value="Patches the Launcher then sends it to you", inline=False)
 
@@ -258,8 +313,12 @@ async def help_command(interaction: discord.Interaction):
 @client.event
 async def on_message(message):
     global total_errors, processed_commands
-    global total_errors, processed_commands
     if message.author == client.user:
+        print("return")
+        return
+    if int(message.author.id) != int(os.getenv("DEVELOPER_ID")):
+        logging.warning(
+            f"Unauthorized user {message.author.display_name} with an ID of {message.author.id} tried to access dev commands")
         return
     if message.content == "..dev_stats":
         logging.info("Processing dev stats request")
@@ -283,10 +342,10 @@ async def on_message(message):
         embed.add_field(name="Bot latency", value=f"{round(client.latency * 1000)}ms", inline=False)
         embed.add_field(name="Errors", value=total_errors, inline=False)
         embed.add_field(name="Commands Processed", value=processed_commands, inline=False)
+
+        # Send embed
+        await message.channel.send(embed=embed)
         processed_commands += 1
-
-
-
 
 
 client.run(os.getenv("BOT_TOKEN"))
