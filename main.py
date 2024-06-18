@@ -45,7 +45,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
     logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     total_errors += 1
-    user = client.fetch_user(os.getenv("DEVELOPER_ID"))
+    user = client.fetch_user(int(os.getenv("DEVELOPER_ID")))
 
     embed = discord.Embed(
         title="Uncatched Exception",
@@ -58,6 +58,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
     user.send(embed=embed)
     logging.info("send dev errorlog")
+
+    exit(1) # PM2 will restart the bot
 
 
 sys.excepthook = handle_exception
