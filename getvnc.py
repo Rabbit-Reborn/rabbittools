@@ -13,8 +13,7 @@ vnc_url = os.getenv("VNC_URL")
 vnc_auth = os.getenv("VNC_AUTH")
 print(vnc_url)
 headers = {
-    "Accept-Encoding:" "gzip, deflate, br, zstd"
-    "Pragma": "no-cache",
+    "Accept-Encoding:" "gzip, deflate, br, zstd" "Pragma": "no-cache",
     "Origin": "https://hole.rabbit.tech",
     "Accept-Language": "en-US,en;q=0.9",
     "Cache-Control": "no-cache",
@@ -28,8 +27,14 @@ out_stream_handler.setLevel(logging.DEBUG)
 out_stream_handler.addFilter(lambda record: record.levelno <= logging.INFO)
 err_stream_handler = logging.StreamHandler(sys.stderr)
 err_stream_handler.setLevel(logging.WARNING)
-logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s', handlers=[out_stream_handler, err_stream_handler])
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s",
+    handlers=[out_stream_handler, err_stream_handler],
+)
 logging.info("logging configured")
+
+
 def keep_alive(websocket, stop_event):
     try:
         while not stop_event.is_set():
@@ -45,16 +50,15 @@ def getVNC(vnc_type):
     init_message = {
         "init": {
             "accessToken": vnc_auth,
-            "viewportConfig": {
-                "viewportHeight": 938,
-                "viewportWidth": 1125
-            }
+            "viewportConfig": {"viewportHeight": 938, "viewportWidth": 1125},
         }
     }
     logging.info("init message configured successfully")
     try:
         logging.info("connecting to vnc url")
-        websocket = connect(vnc, additional_headers=headers, user_agent_header=user_agent)
+        websocket = connect(
+            vnc, additional_headers=headers, user_agent_header=user_agent
+        )
         logging.info("sending vnc init message")
         websocket.send(json.dumps(init_message))
         logging.info("Sent the init message")
@@ -71,7 +75,11 @@ def getVNC(vnc_type):
             # Start a thread to keep the connection alive
             logging.info("starting websocket thread")
             stop_event = threading.Event()
-            keep_alive_thread = threading.Thread(target=keep_alive, args=(websocket, stop_event), name=f"websocket-keep-alive-{vnc_type}")
+            keep_alive_thread = threading.Thread(
+                target=keep_alive,
+                args=(websocket, stop_event),
+                name=f"websocket-keep-alive-{vnc_type}",
+            )
             keep_alive_thread.start()
 
             # Return the URL while the WebSocket connection is kept alive

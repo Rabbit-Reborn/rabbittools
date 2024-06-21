@@ -11,14 +11,16 @@ import time
 from datetime import datetime, timedelta
 import patch
 import imei
+import talk
 
 start_time = datetime.utcnow()
 total_errors = 0
 processed_commands = 0
 load_dotenv()
 
-version = "2.3.0_mini-2_dev1"
-debug = True
+version = "2.4.0_mini1_dev1"
+debug = True # Only put this if u are debugging
+
 # Configure logging
 out_stream_handler = logging.StreamHandler(sys.stdout)
 out_stream_handler.setLevel(logging.DEBUG)
@@ -38,6 +40,10 @@ logging.info("configure bot")
 
 # Unhandled Exception Handler
 def handle_exception(exc_type, exc_value, exc_traceback):
+
+    # This is just the regular python exception handler but DMs u the exception and increments the error count
+    # also it exits the bot so PM2 can restart it (incase its a issue with discord.py or smth)
+
     global total_errors
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -59,9 +65,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     user.send(embed=embed)
     logging.info("send dev errorlog")
 
-    exit(1) # PM2 will restart the bot
+    exit(1)  # PM2 will restart the bot
 
-
+# Set the exception hook to the custom handler
 sys.excepthook = handle_exception
 
 
@@ -72,9 +78,11 @@ class botclient(discord.Client):
         super().__init__(intents=intents)
         self.synced = False
 
-    async def on_command_error(self, ctx: commands.Context, error):
+    async def on_command_error(self, ctx: commands.Context, error): # kinda like the exception handler but for discord.py errors
         total_errors += 1
-        logging.error(f"Error processing command: {type(error)} {error}, {error.__traceback__}")
+        logging.error(
+            f"Error processing command: {type(error)} {error}, {error.__traceback__}"
+        )
 
         # send to dev
         user = await client.fetch_user(os.getenv("DEVELOPER_ID"))
@@ -93,13 +101,10 @@ class botclient(discord.Client):
         await user.send(embed=embed)
         logging.info("send dev errorlog")
 
-
-
-
     async def on_ready(self):
         await self.wait_until_ready()
         logging.info(f"Logged in as {self.user}")
-        if not self.synced:
+        if not self.synced: # Syncs the commands to all the guilds
             await tree.sync()
             self.synced = True
         self.synced = True
@@ -109,8 +114,7 @@ class botclient(discord.Client):
 client = botclient()
 tree = app_commands.CommandTree(client)
 
-
-#@tree.command(name="patch", description="Patches the R1 apk and sends it to you") # NOT YET ON PROD
+#@tree.command(name="patch", description="Patches the R1 apk and sends it to you") # Not yet ready for production. If you want then you can uncomment this
 async def patch_command(interaction: discord.Interaction):
     global total_errors, processed_commands
     logging.info(f"patch request from {interaction.user.display_name}")
@@ -129,39 +133,36 @@ async def patch_command(interaction: discord.Interaction):
         )
         logging.info("sent")
         time.sleep(2)
+        # not yet supported for mediafire uploads (thats the only reason why this isnt in prod)
         await interaction.edit_original_response(
             content="Failed to upload to MediaFire. Try again later"
         )
         total_errors += 1
 
-
-@tree.command(name="r1_imei", description="Generates a random IMEI or validates an IMEI")
-async def imeicheck(interaction: discord.Interaction, imei_input: str = None):
+@tree.command(
+    name="r1_imei", description="Generates a random IMEI or validates an IMEI"
+)
+async def imeicheck(interaction: discord.Interaction, imei_input: int = None):
     global total_errors, processed_commands
     logging.info(f"imeicheck request for {interaction.user.display_name}")
+
     if imei_input is None:
         logging.info("No IMEI provided")
+
+        # generate imei
+
         imei_a = imei.generate_imei()
         await interaction.response.send_message(f"Generated IMEI: {imei_a}")
     else:
+
+        # Validation mode
+
         logging.info("IMEI provided")
-        if len(imei_input) < 5:
-            await interaction.response.send_message(f"IMEI {imei_input} is invalid.")
-            return
-        try:
-            int(imei_input)
-        except ValueError:
-            await interaction.response.send_message(f"IMEI {imei_input} is invalid.")
-            return
-        except Exception as e:
-            logging.error(e)
-            await interaction.response.send_message(f"Error processing request")
-            total_errors += 1
-        result = imei.validate_imei(imei_input)
-        if result:
+        result = imei.validate_imei(str(imei_input))
+        if result: # if valid
             logging.info("valid IMEI")
             await interaction.response.send_message(f"IMEI {imei_input} is valid.")
-        else:
+        else: # if not valid
             logging.info("invalid IMEI")
             await interaction.response.send_message(f"IMEI {imei_input} is invalid.")
     processed_commands += 1
@@ -169,28 +170,30 @@ async def imeicheck(interaction: discord.Interaction, imei_input: str = None):
 
 @tree.command(name="vnc", description="Gets a VNC URL from Rabbit")
 @app_commands.describe(service="Choose the service")
-@app_commands.choices(service=[
-    app_commands.Choice(name="Midjourney", value="midjourney"),
-    app_commands.Choice(name="Spotify", value="spotify"),
-    app_commands.Choice(name="Apple Music", value="appleMusic"),
-    app_commands.Choice(name="Uber", value="uber"),
-    app_commands.Choice(name="DoorDash", value="doorDash")
-])
+@app_commands.choices(
+    service=[
+        app_commands.Choice(name="Midjourney", value="midjourney"),
+        app_commands.Choice(name="Spotify", value="spotify"),
+        app_commands.Choice(name="Apple Music", value="appleMusic"),
+        app_commands.Choice(name="Uber", value="uber"),
+        app_commands.Choice(name="DoorDash", value="doorDash"),
+    ]
+)
 async def vnc(interaction: discord.Interaction, service: app_commands.Choice[str]):
     global total_errors, processed_commands
     vnc_type = service.value
 
     await interaction.response.send_message("Getting VNC. Please wait")
-    vnc_url = getvnc.getVNC(vnc_type)
+    vnc_url = getvnc.getVNC(vnc_type) # Gets the VNC Url
 
-    if vnc_url is False:
+    if vnc_url is False: # Unknown exception
         logging.error("Failed to get VNC")
         await interaction.edit_original_response(
             content="Failed to get VNC. Try again later"
         )
         total_errors += 1
         return
-    elif vnc_url == "timeout-vnc":
+    elif vnc_url == "timeout-vnc": # 30 second timeout while waiting for VNC (Most likely session expired)
         await interaction.edit_original_response(
             content="Connection timeout while waiting for Rabbit to send the VNC URL. Try again later!"
         )
@@ -200,23 +203,28 @@ async def vnc(interaction: discord.Interaction, service: app_commands.Choice[str
         logging.info("Getting expiration date")
         now = datetime.utcnow()
         expiration = now + timedelta(minutes=5)
-        expiration_str = expiration.strftime("%Y-%m-%d %H:%M:%S")
+        expiration_str = f"<t:{int(expiration.timestamp())}:R>" # Use discord's relative time so its a lot more easier to read (i just realized timezones exist)
         logging.info("Creating embed")
+
         embed = discord.Embed(
             title=f"VNC for {interaction.user.display_name}",
             description="Successfully generated a VNC instance\nNote that this VNC **expires** after 5 minutes!",
             color=0x00FF00,
             url=vnc_url,
         )
+
         embed.add_field(name="VNC URL", value=vnc_url, inline=False)
         embed.add_field(name="VNC Type", value=vnc_type, inline=False)
-        embed.add_field(name="Expiration date (UTC-0)", value=expiration_str, inline=True)
-        embed.set_author(
+        embed.add_field(
+            name="Expiration date (UTC-0)", value=expiration_str, inline=True
+        )
+        embed.set_author( # Credits ;)
             name="RabbitTools",
             icon_url="https://i.postimg.cc/GtBr3JW4/IMG-5068.jpg",
             url="https://discord.gg/RbFpvs2ArY",
         )
-        await interaction.edit_original_response(content="", embed=embed)
+        await interaction.edit_original_response(content="", embed=embed) # send embed with data
+
         logging.info("sent")
         logging.info(f"Processed request for VNC from {interaction.user.display_name}")
         processed_commands += 1
@@ -225,7 +233,9 @@ async def vnc(interaction: discord.Interaction, service: app_commands.Choice[str
 @tree.command(name="ota", description="Gets the latest OTA update information")
 async def getlatestotacommand(interaction: discord.Interaction):
     global total_errors, processed_commands
-    logging.info(f"Processing request for latest OTA from {interaction.user.display_name}")
+    logging.info(
+        f"Processing request for latest OTA from {interaction.user.display_name}"
+    )
     await interaction.response.send_message("Getting latest OTA. Please wait")
     ota = getlatest.getLatestOTA()
     if ota is False:
@@ -290,23 +300,31 @@ async def help_command(interaction: discord.Interaction):
         description="Made by Proton0 and Rabbit R[eborn]",
         url="https://discord.gg/RbFpvs2ArY",
     )
-    embed.set_author(
+    embed.set_author( # again credits ;)
         name="RabbitTools",
         icon_url="https://i.postimg.cc/GtBr3JW4/IMG-5068.jpg",
         url="https://discord.gg/RbFpvs2ArY",
     )
-
+    # this is just all the commands n stuff
     embed.add_field(name="/ota", value="Gets the latest OTA from Rabbit", inline=False)
-    embed.add_field(name="/vnc [type]",
-                    value="Generates a VNC instance. Valid types are: midjourney, spotify, uber, doordash",
-                    inline=False)
-    embed.add_field(name="/r1_imei [imei]", value="Validates or generates an IMEI", inline=False)
-    #embed.add_field(name="/patch", value="Patches the Launcher then sends it to you", inline=False)
+    embed.add_field(
+        name="/vnc [type]",
+        value="Generates a VNC instance. Valid types are: midjourney, spotify, uber, doordash",
+        inline=False,
+    )
+    embed.add_field(
+        name="/r1_imei [imei]", value="Validates or generates an IMEI", inline=False
+    )
+    embed.add_field(name="/talk [message]", value="Not yet ready", inline=False)
+    if debug:
+        embed.add_field(name="/patch", value="Not yet ready", inline=False)
 
     if not debug:
         embed.set_footer(text=f"Version {version}")
     else:
-        embed.set_footer(text=f"This version is a development build. Bugs will occur ({version})")
+        embed.set_footer(
+            text=f"This version is a development build. Bugs will occur ({version})"
+        )
     await interaction.response.send_message(embed=embed)
     logging.info("Processed request for help")
     processed_commands += 1
@@ -318,11 +336,8 @@ async def on_message(message):
     if message.author == client.user:
         print("return")
         return
-    if int(message.author.id) != int(os.getenv("DEVELOPER_ID")):
-        logging.warning(
-            f"Unauthorized user {message.author.display_name} with an ID of {message.author.id} tried to access dev commands")
-        return
     if message.content == "..dev_stats":
+        # developer stats
         logging.info("Processing dev stats request")
 
         # Create embed
@@ -337,17 +352,46 @@ async def on_message(message):
         if not debug:
             embed.set_footer(text=f"Version {version}")
         else:
-            embed.set_footer(text=f"This version is a development build. Bugs will occur ({version})")
+            embed.set_footer(
+                text=f"This version is a development build. Bugs will occur ({version})"
+            )
 
         # Add fields
-        embed.add_field(name="Bot uptime", value=str(datetime.utcnow() - start_time), inline=False)
-        embed.add_field(name="Bot latency", value=f"{round(client.latency * 1000)}ms", inline=False)
-        embed.add_field(name="Errors", value=total_errors, inline=False)
-        embed.add_field(name="Commands Processed", value=processed_commands, inline=False)
+        embed.add_field(
+            name="Bot uptime", value=str(datetime.utcnow() - start_time), inline=False
+        )
+        embed.add_field(
+            name="Bot latency", value=f"{round(client.latency * 1000)}ms", inline=False
+        )
+        embed.add_field(name="Errors", value=total_errors, inline=False) # not accurate
+        embed.add_field(
+            name="Commands Processed", value=processed_commands, inline=False # also not accurate
+        )
 
         # Send embed
         await message.channel.send(embed=embed)
         processed_commands += 1
+
+
+@tree.command(name="talk", description="Talk to rabbit r1's 'AI' (not really an AI)")
+async def talkc(interaction: discord.Interaction, message: str):
+    global total_errors, processed_commands
+    logging.info(f"Processing request for talk from {interaction.user.display_name}")
+
+    await interaction.response.send_message("Sending your message")
+
+    response = await talk.Talk(message)
+
+    if response == "login_failure": # Login failure
+        await interaction.edit_original_response(content="Failed to login to Rabbit")
+        total_errors += 1
+        return
+    if response == "error": # error
+        await interaction.edit_original_response(content="Failed to send message")
+        total_errors += 1
+        return
+    await interaction.edit_original_response(content=str(response))
+    processed_commands += 1
 
 
 client.run(os.getenv("BOT_TOKEN"))
