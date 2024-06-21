@@ -315,7 +315,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(
         name="/r1_imei [imei]", value="Validates or generates an IMEI", inline=False
     )
-    embed.add_field(name="/talk [message]", value="Not yet ready", inline=False)
+    embed.add_field(name="/talk [message]", value="Talk to rabbit's AI", inline=False)
     if debug:
         embed.add_field(name="/patch", value="Not yet ready", inline=False)
 
