@@ -48,4 +48,6 @@ To run this project, you will need to add the following environment variables to
 
 
 ## Acknowledgements
- - [R1 APK Patcher]()
+ - [R1 APK Patcher](https://firmburrow.rabbitu.de/meowster/r1-apk-patcher)
+ - [rabbitserver-go](https://firmburrow.rabbitu.de/Snow/rabbitserver-go)
+ - [Rabbit R1 IMEI Generator](https://github.com/annabelsandford/rabbit-r1-imeigen)
