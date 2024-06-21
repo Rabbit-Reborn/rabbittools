@@ -4,3 +4,6 @@ cookie.txt
 __pycache__
 *.apk
 tests
+rabbitserver-go/bin
+rabbitserver-go/start.sh
+r1-apk-patcher/*.apk
