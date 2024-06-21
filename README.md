@@ -5,6 +5,7 @@ A simple discord bot which can do many things
 
 Made by [Proton0](https://github.com/Proton0)
 
+**DO NOT LEAK. VERY IMPORTANT AND NOT YET READY**
 
 ## Run Locally
 

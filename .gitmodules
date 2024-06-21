@@ -1,0 +1,6 @@
+[submodule "rabbitserver-go"]
+	path = rabbitserver-go
+	url = https://firmburrow.rabbitu.de/Snow/rabbitserver-go
+[submodule "r1-apk-patcher"]
+	path = r1-apk-patcher
+	url = https://firmburrow.rabbitu.de/meowster/r1-apk-patcher
