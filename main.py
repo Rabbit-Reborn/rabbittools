@@ -18,7 +18,7 @@ total_errors = 0
 processed_commands = 0
 load_dotenv()
 
-version = "2.4.0_mini1_dev1"
+version = "2.4.0_dev1"
 debug = True # Only put this if u are debugging
 
 # Configure logging

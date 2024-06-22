@@ -38,13 +38,21 @@ Start the bot
 
 To run this project, you will need to add the following environment variables to your .env file
 
-`BOT_TOKEN`
+`BOT_TOKEN` (Discord Bot Token)
 
-`VNC_URL`
+`VNC_URL` (Used for /vnc)
 
-`OTA_URL`
+`OTA_URL` (Used for /ota)
 
-`VNC_AUTH`
+`VNC_AUTH` (Used for /vnc)
+
+`PATCH_DIR` (Used for /patch)
+
+`DEVELOPER_ID` (Used for developer commands)
+
+`ACCOUNT_KEY` (Used for /talk)
+
+`IMEI` (Used for /talk)
 
 
 ## Acknowledgements
