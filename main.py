@@ -204,7 +204,7 @@ async def vnc(interaction: discord.Interaction, service: app_commands.Choice[str
         logging.info("Getting expiration date")
         now = datetime.utcnow()
         expiration = now + timedelta(minutes=5)
-        expiration_str = f"<t:{int(expiration.timestamp())}:R>" # Use discord's relative time so its a lot more easier to read (i just realized timezones exist)
+        expiration_str = expiration.strftime("%Y-%m-%d %H:%M:%S")
         logging.info("Creating embed")
 
         embed = discord.Embed(

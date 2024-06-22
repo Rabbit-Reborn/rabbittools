@@ -35,12 +35,19 @@ logging.basicConfig(
 logging.info("logging configured")
 
 
-def keep_alive(websocket, stop_event):
+def keep_alive(websocket):
     try:
-        while not stop_event.is_set():
-            # Send a ping or some message to keep the connection alive
+        original_time = time.time()
+
+        while True:
             websocket.send(json.dumps({"type": "ping"}))
             time.sleep(10)  # Adjust the interval as needed
+            if time.time() - original_time > 300:
+                logging.info("Timeout has been reached!. Closing the connection")
+                websocket.close()
+                break
+
+        return
     except Exception as e:
         logging.error(f"Error in keep_alive thread: {e}")
 
@@ -74,10 +81,9 @@ def getVNC(vnc_type):
 
             # Start a thread to keep the connection alive
             logging.info("starting websocket thread")
-            stop_event = threading.Event()
             keep_alive_thread = threading.Thread(
                 target=keep_alive,
-                args=(websocket, stop_event),
+                args=(websocket,),
                 name=f"websocket-keep-alive-{vnc_type}",
             )
             keep_alive_thread.start()
@@ -86,12 +92,6 @@ def getVNC(vnc_type):
             logging.info("returning debugNoVncUrl")
             return debugNoVncUrl
 
-            # Sleep for 5 minutes then stop the keep-alive thread
-            time.sleep(5 * 60)
-            logging.info("Stopping websocket thread")
-            stop_event.set()
-            keep_alive_thread.join()
-            websocket.close()
     except TimeoutError:
         logging.error("Connection timeout while waiting for Rabbit to respond with VNC")
         return "timeout-vnc"
