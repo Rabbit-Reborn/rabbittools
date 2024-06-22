@@ -79,13 +79,14 @@ class botclient(discord.Client):
         self.synced = False
 
     async def on_command_error(self, ctx: commands.Context, error): # kinda like the exception handler but for discord.py errors
+        global total_errors
         total_errors += 1
         logging.error(
             f"Error processing command: {type(error)} {error}, {error.__traceback__}"
         )
 
         # send to dev
-        user = await client.fetch_user(os.getenv("DEVELOPER_ID"))
+        user = await client.fetch_user(int(os.getenv("DEVELOPER_ID")))
 
         embed = discord.Embed(
             title="Uncatched Exception",
@@ -184,7 +185,7 @@ async def vnc(interaction: discord.Interaction, service: app_commands.Choice[str
     vnc_type = service.value
 
     await interaction.response.send_message("Getting VNC. Please wait")
-    vnc_url = getvnc.getVNC(vnc_type) # Gets the VNC Url
+    vnc_url = getvnc.getVNC(vnc_type) # TODO: run in another thread because it blocks discord.py
 
     if vnc_url is False: # Unknown exception
         logging.error("Failed to get VNC")
